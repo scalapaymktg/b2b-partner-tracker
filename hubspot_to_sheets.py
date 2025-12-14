@@ -85,7 +85,7 @@ BASE_HEADERS = [
     "Deal Date entered \"KYC Pending Approval\"",
     "Deal Date entered \"Onboarding Completed\"",
     "Deal Offline Annual Revenue", "Deal First Order TTV",
-    "Deal Days between Create and KYC",
+    "Deal Days between Create and KYC (min)",
     "Deal Date entered \"Proposal sent\"",
     "Deal Date exited \"Proposal sent\"",
     "Deal Cumulative time in \"Proposal sent\" (min)",
@@ -305,7 +305,7 @@ def process_deals(deals, partner_keyword=""):
             format_date(date_entered_onboarding),                     # J: Onboarding
             format_euro(props.get("offline_annual_revenue", "")),
             format_euro(props.get("first_order_ttv", "")),
-            props.get("days_between_create_and_kyc", ""),
+            format_ms_to_minutes(props.get("days_between_create_and_kyc", "")),  # M: Minuti
             format_date(date_entered_proposal),                       # N: Date entered
             format_date(date_exited_proposal),                        # O: Date exited
             format_ms_to_minutes(time_in_proposal),                   # P: Minuti
@@ -422,6 +422,28 @@ def format_sheet(service, sheet_name, num_rows):
                 "fields": "userEnteredFormat.numberFormat"
             }
         })
+
+    # Colonna minuti M (index 12) - Days between Create and KYC
+    requests_list.append({
+        "repeatCell": {
+            "range": {
+                "sheetId": sheet_id,
+                "startRowIndex": 1,
+                "endRowIndex": num_rows + 1,
+                "startColumnIndex": 12,
+                "endColumnIndex": 13
+            },
+            "cell": {
+                "userEnteredFormat": {
+                    "numberFormat": {
+                        "type": "NUMBER",
+                        "pattern": "0.00"
+                    }
+                }
+            },
+            "fields": "userEnteredFormat.numberFormat"
+        }
+    })
 
     # Colonna minuti P (index 15) - formato numero
     requests_list.append({
