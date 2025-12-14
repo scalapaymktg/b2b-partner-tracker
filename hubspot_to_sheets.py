@@ -148,20 +148,42 @@ def load_instore_category_labels():
 
 
 def get_all_deals():
-    url = "https://api.hubapi.com/crm/v3/objects/deals"
+    """Recupera solo i deal dalla Partnership Pipeline usando Search API."""
+    url = "https://api.hubapi.com/crm/v3/objects/deals/search"
     all_deals = []
-    after = None
+    after = 0
+
     while True:
-        params = {"limit": 100, "properties": ",".join(HUBSPOT_PROPERTIES)}
-        if after:
-            params["after"] = after
-        response = requests.get(url, headers=HUBSPOT_HEADERS, params=params)
+        # Usa Search API con filtro per pipeline
+        payload = {
+            "filterGroups": [{
+                "filters": [{
+                    "propertyName": "pipeline",
+                    "operator": "EQ",
+                    "value": PARTNERSHIP_PIPELINE_ID
+                }]
+            }],
+            "properties": HUBSPOT_PROPERTIES,
+            "limit": 100,
+            "after": after
+        }
+
+        response = requests.post(url, headers=HUBSPOT_HEADERS, json=payload)
         data = response.json()
-        all_deals.extend(data.get("results", []))
-        after = data.get("paging", {}).get("next", {}).get("after")
-        if not after:
+
+        results = data.get("results", [])
+        all_deals.extend(results)
+
+        # Paging per Search API
+        paging = data.get("paging", {})
+        next_page = paging.get("next", {})
+        after = next_page.get("after")
+
+        if not after or len(results) == 0:
             break
-        print(f"  Recuperati {len(all_deals)} deal...", flush=True)
+
+        print(f"  Recuperati {len(all_deals)} deal dalla Partnership Pipeline...", flush=True)
+
     return all_deals
 
 
@@ -478,9 +500,9 @@ def run_export():
     load_instore_category_labels()
     print(f"  {len(INSTORE_CATEGORY_LABELS)} categorie caricate", flush=True)
 
-    print("\n[3/5] Recupero deal da HubSpot...", flush=True)
+    print("\n[3/5] Recupero deal dalla Partnership Pipeline...", flush=True)
     deals = get_all_deals()
-    print(f"  {len(deals)} deal trovati", flush=True)
+    print(f"  {len(deals)} deal trovati nella Partnership Pipeline", flush=True)
 
     print("\n[4/5] Connessione a Google Sheets...", flush=True)
     service = get_google_sheets_service()
