@@ -42,13 +42,19 @@ HUBSPOT_HEADERS = {
 PARTNERSHIP_PIPELINE_ID = "1347411134"
 MARKETING_PIPELINE_ID = "75805933"  # Marketing - Inbound automated Micro/Small Pipeline
 
-# Stage IDs per la pipeline Partnership
+# Stage IDs per ogni pipeline
 PIPELINES = {
     "partnership": {
         "pipeline_id": "1347411134",
         "proposal_sent": "1834011865",
         "kyc_pending_approval": "1834011866",
         "onboarding_completed": "2019816637"
+    },
+    "marketing": {
+        "pipeline_id": "75805933",
+        "proposal_sent": "181259988",
+        "kyc_pending_approval": "720800761",
+        "onboarding_completed": "181259990"
     }
 }
 
