@@ -218,15 +218,17 @@ def format_euro(value):
         return value
 
 
-def classify_deal_size(value, store_type=""):
-    """Classifica il deal in base all'amount. Se Physical store, usa amount/0.05 per il clustering."""
+def classify_deal_size(value, store_type="", partner=""):
+    """Classifica il deal in base all'amount. Per SmallPay/PostePay con Physical store, usa amount/0.05."""
     if not value:
         return ""
     try:
         amount = float(str(value).replace(",", ".").replace(" ", ""))
-        # Se Physical store, usa amount/0.05 per il clustering (senza salvare)
-        if store_type and "physical store" in store_type.lower():
-            amount = amount / 0.05
+        # Solo per SmallPay e PostePay: se Physical store, usa amount/0.05
+        partner_lower = partner.lower() if partner else ""
+        if partner_lower in ["smallpay", "postepay"]:
+            if store_type and "physical store" in store_type.lower():
+                amount = amount / 0.05
         if amount < 50000:
             return "0 - 50.000 €"
         elif amount < 100000:
@@ -342,7 +344,7 @@ def process_deals(deals, partner_keyword=""):
             # Nuove colonne comuni
             props.get("risk_check_status", ""),
             props.get("store_type", ""),
-            classify_deal_size(props.get("amount", ""), props.get("store_type", ""))  # Deal Size
+            classify_deal_size(props.get("amount", ""), props.get("store_type", ""), partner_keyword)  # Deal Size
         ]
 
         # Colonne aggiuntive per Attitude
