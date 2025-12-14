@@ -26,7 +26,7 @@ GOOGLE_SHEET_ID = os.getenv("GOOGLE_SHEET_ID", "1JtvLP9vLPkn98seLav0tUQShvQyICSf
 # pipeline_id: None = usa pipeline di default (Partnership), altrimenti specifica
 # skip_partner_filter: True = prendi tutti i deal della pipeline senza filtrare per partner
 PARTNERS = {
-    "Smallpay": {"sheet": "Smallpay", "pipeline": "75805933", "skip_partner_filter": True},  # Marketing pipeline - tutti i deal
+    "Smallpay": {"sheet": "Smallpay", "pipeline": "75805933", "skip_partner_filter": False},  # Marketing pipeline - filtra per partner
     "Deutsche Bank": {"sheet": "Deutsche Bank", "pipeline": None, "skip_partner_filter": False},
     "Attitude": {"sheet": "Attitude", "pipeline": None, "skip_partner_filter": False},
     "PostePay": {"sheet": "PostePay", "pipeline": None, "skip_partner_filter": False}
