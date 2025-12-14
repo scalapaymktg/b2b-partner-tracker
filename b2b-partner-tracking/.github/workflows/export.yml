@@ -1,0 +1,40 @@
+name: HubSpot to Google Sheets Export
+
+on:
+  schedule:
+    # Esegue alle 05:05 CET (04:05 UTC in inverno, 03:05 UTC in estate)
+    - cron: '5 4 * * *'
+  workflow_dispatch:  # Permette esecuzione manuale
+
+jobs:
+  export:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Create credentials files
+        run: |
+          echo '${{ secrets.GOOGLE_CREDENTIALS }}' > credentials.json
+          echo '${{ secrets.GOOGLE_TOKEN }}' > token.json
+
+      - name: Run HubSpot export
+        env:
+          HUBSPOT_API_TOKEN: ${{ secrets.HUBSPOT_API_TOKEN }}
+          GOOGLE_SHEET_ID: ${{ secrets.GOOGLE_SHEET_ID }}
+        run: python hubspot_to_sheets.py
+
+      - name: Cleanup credentials
+        if: always()
+        run: |
+          rm -f credentials.json token.json
