@@ -84,7 +84,7 @@ BASE_HEADERS = [
     "Partner Name", "Deal TTV All Time", "Deal InStore Category",
     "Deal Date entered \"KYC Pending Approval\"",
     "Deal Date entered \"Onboarding Completed\"",
-    "Deal Offline Annual Revenue", "Deal First Order TTV",
+    "Deal Offline Annual Revenue", "Deal Size", "Deal First Order TTV",
     "Deal Days between Create and KYC (min)",
     "Deal Date entered \"Proposal sent\"",
     "Deal Date exited \"Proposal sent\"",
@@ -218,6 +218,32 @@ def format_euro(value):
         return value
 
 
+def classify_deal_size(value):
+    """Classifica il deal in base all'offline_annual_revenue."""
+    if not value:
+        return ""
+    try:
+        amount = float(str(value).replace(",", ".").replace(" ", ""))
+        if amount < 50000:
+            return "0 - 50.000 €"
+        elif amount < 100000:
+            return "50.000 € - 100.000 €"
+        elif amount < 300000:
+            return "100.000 € - 300.000 €"
+        elif amount < 500000:
+            return "300.000 € - 500.000 €"
+        elif amount < 1000000:
+            return "500.000 € - 1M €"
+        elif amount < 5000000:
+            return "1M € - 5M €"
+        elif amount < 10000000:
+            return "5M € - 10M €"
+        else:
+            return "Oltre 10M €"
+    except:
+        return ""
+
+
 def format_ms_to_minutes(ms_string):
     """Converte millisecondi in minuti."""
     if not ms_string:
@@ -304,6 +330,7 @@ def process_deals(deals, partner_keyword=""):
             format_date(date_entered_kyc),                            # I: KYC
             format_date(date_entered_onboarding),                     # J: Onboarding
             format_euro(props.get("offline_annual_revenue", "")),
+            classify_deal_size(props.get("offline_annual_revenue", "")),  # Deal Size
             format_euro(props.get("first_order_ttv", "")),
             format_ms_to_minutes(props.get("days_between_create_and_kyc", "")),  # M: Minuti
             format_date(date_entered_proposal),                       # N: Date entered
@@ -399,8 +426,8 @@ def format_sheet(service, sheet_name, num_rows):
 
     requests_list = []
 
-    # Colonne Euro: D (index 3), G (index 6), K (index 10), L (index 11)
-    euro_columns = [3, 6, 10, 11]
+    # Colonne Euro: D (index 3), G (index 6), K (index 10), M (index 12 - First Order TTV)
+    euro_columns = [3, 6, 10, 12]
     for col_idx in euro_columns:
         requests_list.append({
             "repeatCell": {
@@ -423,15 +450,15 @@ def format_sheet(service, sheet_name, num_rows):
             }
         })
 
-    # Colonna minuti M (index 12) - Days between Create and KYC
+    # Colonna minuti N (index 13) - Days between Create and KYC
     requests_list.append({
         "repeatCell": {
             "range": {
                 "sheetId": sheet_id,
                 "startRowIndex": 1,
                 "endRowIndex": num_rows + 1,
-                "startColumnIndex": 12,
-                "endColumnIndex": 13
+                "startColumnIndex": 13,
+                "endColumnIndex": 14
             },
             "cell": {
                 "userEnteredFormat": {
@@ -445,29 +472,7 @@ def format_sheet(service, sheet_name, num_rows):
         }
     })
 
-    # Colonna minuti P (index 15) - formato numero
-    requests_list.append({
-        "repeatCell": {
-            "range": {
-                "sheetId": sheet_id,
-                "startRowIndex": 1,
-                "endRowIndex": num_rows + 1,
-                "startColumnIndex": 15,
-                "endColumnIndex": 16
-            },
-            "cell": {
-                "userEnteredFormat": {
-                    "numberFormat": {
-                        "type": "NUMBER",
-                        "pattern": "0.00"
-                    }
-                }
-            },
-            "fields": "userEnteredFormat.numberFormat"
-        }
-    })
-
-    # Colonna ore Q (index 16) - formato ore
+    # Colonna minuti Q (index 16) - Cumulative time in Proposal sent
     requests_list.append({
         "repeatCell": {
             "range": {
@@ -476,6 +481,28 @@ def format_sheet(service, sheet_name, num_rows):
                 "endRowIndex": num_rows + 1,
                 "startColumnIndex": 16,
                 "endColumnIndex": 17
+            },
+            "cell": {
+                "userEnteredFormat": {
+                    "numberFormat": {
+                        "type": "NUMBER",
+                        "pattern": "0.00"
+                    }
+                }
+            },
+            "fields": "userEnteredFormat.numberFormat"
+        }
+    })
+
+    # Colonna ore R (index 17) - Ore in Proposal sent
+    requests_list.append({
+        "repeatCell": {
+            "range": {
+                "sheetId": sheet_id,
+                "startRowIndex": 1,
+                "endRowIndex": num_rows + 1,
+                "startColumnIndex": 17,
+                "endColumnIndex": 18
             },
             "cell": {
                 "userEnteredFormat": {
