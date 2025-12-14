@@ -219,11 +219,29 @@ def format_euro(value):
 
 
 def classify_deal_size(value):
-    """Ritorna il valore di offline_annual_revenue (già classificato in HubSpot)."""
+    """Classifica il deal in base all'amount."""
     if not value:
         return ""
-    # Il campo è già categorizzato in HubSpot, passiamo il valore così com'è
-    return str(value)
+    try:
+        amount = float(str(value).replace(",", ".").replace(" ", ""))
+        if amount < 50000:
+            return "0 - 50.000 €"
+        elif amount < 100000:
+            return "50.000 € - 100.000 €"
+        elif amount < 300000:
+            return "100.000 € - 300.000 €"
+        elif amount < 500000:
+            return "300.000 € - 500.000 €"
+        elif amount < 1000000:
+            return "500.000 € - 1M €"
+        elif amount < 5000000:
+            return "1M € - 5M €"
+        elif amount < 10000000:
+            return "5M € - 10M €"
+        else:
+            return "Oltre 10M €"
+    except:
+        return ""
 
 
 def format_ms_to_minutes(ms_string):
@@ -321,7 +339,7 @@ def process_deals(deals, partner_keyword=""):
             # Nuove colonne comuni
             props.get("risk_check_status", ""),
             props.get("store_type", ""),
-            classify_deal_size(props.get("offline_annual_revenue", ""))  # Deal Size
+            classify_deal_size(props.get("amount", ""))  # Deal Size basato su amount
         ]
 
         # Colonne aggiuntive per Attitude
