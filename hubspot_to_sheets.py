@@ -22,12 +22,14 @@ load_dotenv()
 HUBSPOT_API_TOKEN = os.getenv("HUBSPOT_API_TOKEN")
 GOOGLE_SHEET_ID = os.getenv("GOOGLE_SHEET_ID", "1JtvLP9vLPkn98seLav0tUQShvQyICSfLA87eP-cv7uk")
 
-# Partner da filtrare con i rispettivi nomi dei fogli
+# Partner da filtrare con i rispettivi nomi dei fogli e pipeline
+# pipeline_id: None = usa pipeline di default (Partnership), altrimenti specifica
+# skip_partner_filter: True = prendi tutti i deal della pipeline senza filtrare per partner
 PARTNERS = {
-    "Smallpay": "SmallPay",
-    "Deutsche Bank": "Deutsche Bank",
-    "Attitude": "Attitude",
-    "PostePay": "PostePay"
+    "Smallpay": {"sheet": "Smallpay", "pipeline": "75805933", "skip_partner_filter": True},  # Marketing pipeline - tutti i deal
+    "Deutsche Bank": {"sheet": "Deutsche Bank", "pipeline": None, "skip_partner_filter": False},
+    "Attitude": {"sheet": "Attitude", "pipeline": None, "skip_partner_filter": False},
+    "PostePay": {"sheet": "PostePay", "pipeline": None, "skip_partner_filter": False}
 }
 
 SCOPES = ["https://www.googleapis.com/auth/spreadsheets"]
@@ -37,8 +39,9 @@ HUBSPOT_HEADERS = {
     "Content-Type": "application/json"
 }
 
-# Pipeline Partnership (unica da considerare)
+# Pipeline IDs
 PARTNERSHIP_PIPELINE_ID = "1347411134"
+MARKETING_PIPELINE_ID = "75805933"  # Marketing - Inbound automated Micro/Small Pipeline
 
 # Stage IDs per la pipeline Partnership
 PIPELINES = {
@@ -61,7 +64,7 @@ HUBSPOT_PROPERTIES = [
     "partner_label_name", "ttv_all_time", "instore_category", "offline_annual_revenue",
     "first_order_ttv", "days_between_create_and_kyc",
     # Nuove colonne comuni
-    "risk_check_status", "store_type",
+    "risk_check_status", "store_type", "category",
     # Colonne per Attitude
     "third_party___customer_tier", "third_party___remuneration",
     "original_agent_source_name", "third_party___fixed_fee", "third_party___products__fee",
@@ -91,7 +94,7 @@ BASE_HEADERS = [
     "Deal Cumulative time in \"Proposal sent\" (min)",
     "Ore in Proposal sent",
     # Nuove colonne comuni
-    "Risk Check Status", "Store Type", "Deal Size"
+    "Risk Check Status", "Store Type", "Deal Size", "Category"
 ]
 
 # Header aggiuntivi per partner specifici
@@ -147,8 +150,11 @@ def load_instore_category_labels():
         INSTORE_CATEGORY_LABELS[opt["value"]] = opt["label"]
 
 
-def get_all_deals():
-    """Recupera solo i deal dalla Partnership Pipeline usando Search API."""
+def get_all_deals(pipeline_id=None):
+    """Recupera deal dalla pipeline specificata usando Search API."""
+    if pipeline_id is None:
+        pipeline_id = PARTNERSHIP_PIPELINE_ID
+
     url = "https://api.hubapi.com/crm/v3/objects/deals/search"
     all_deals = []
     after = 0
@@ -160,7 +166,7 @@ def get_all_deals():
                 "filters": [{
                     "propertyName": "pipeline",
                     "operator": "EQ",
-                    "value": PARTNERSHIP_PIPELINE_ID
+                    "value": pipeline_id
                 }]
             }],
             "properties": HUBSPOT_PROPERTIES,
@@ -182,7 +188,7 @@ def get_all_deals():
         if not after or len(results) == 0:
             break
 
-        print(f"  Recuperati {len(all_deals)} deal dalla Partnership Pipeline...", flush=True)
+        print(f"  Recuperati {len(all_deals)} deal...", flush=True)
 
     return all_deals
 
@@ -344,7 +350,8 @@ def process_deals(deals, partner_keyword=""):
             # Nuove colonne comuni
             props.get("risk_check_status", ""),
             props.get("store_type", ""),
-            classify_deal_size(props.get("amount", ""), props.get("store_type", ""), partner_keyword)  # Deal Size
+            classify_deal_size(props.get("amount", ""), props.get("store_type", ""), partner_keyword),  # Deal Size
+            props.get("category", "")  # Category
         ]
 
         # Colonne aggiuntive per Attitude
@@ -368,16 +375,25 @@ def process_deals(deals, partner_keyword=""):
     return rows
 
 
-def filter_deals_by_partner(deals, partner_keyword):
-    """Filtra i deal in base al partner_label_name e pipeline Partnership."""
+def filter_deals_by_partner(deals, partner_keyword, pipeline_id=None, skip_partner_filter=False):
+    """Filtra i deal in base al partner_label_name e pipeline specificata."""
+    if pipeline_id is None:
+        pipeline_id = PARTNERSHIP_PIPELINE_ID
+
     filtered = []
     for deal in deals:
         props = deal.get("properties", {})
         partner_name = props.get("partner_label_name", "") or ""
         pipeline = props.get("pipeline", "")
-        # Filtra solo pipeline Partnership e partner name corrispondente
-        if pipeline == PARTNERSHIP_PIPELINE_ID and partner_keyword.lower() in partner_name.lower():
-            filtered.append(deal)
+
+        # Se skip_partner_filter è True, prendi tutti i deal della pipeline
+        if skip_partner_filter:
+            if pipeline == pipeline_id:
+                filtered.append(deal)
+        else:
+            # Filtra per pipeline e partner name corrispondente
+            if pipeline == pipeline_id and partner_keyword.lower() in partner_name.lower():
+                filtered.append(deal)
     return filtered
 
 
@@ -546,29 +562,43 @@ def run_export():
     print(f"HubSpot to Google Sheets - {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}", flush=True)
     print("=" * 50, flush=True)
 
-    print("\n[1/5] Caricamento stage...", flush=True)
+    print("\n[1/6] Caricamento stage...", flush=True)
     load_stage_labels()
     print(f"  {len(STAGE_LABELS)} stage caricati", flush=True)
 
-    print("\n[2/5] Caricamento categorie InStore...", flush=True)
+    print("\n[2/6] Caricamento categorie InStore...", flush=True)
     load_instore_category_labels()
     print(f"  {len(INSTORE_CATEGORY_LABELS)} categorie caricate", flush=True)
 
-    print("\n[3/5] Recupero deal dalla Partnership Pipeline...", flush=True)
-    deals = get_all_deals()
-    print(f"  {len(deals)} deal trovati nella Partnership Pipeline", flush=True)
+    print("\n[3/6] Recupero deal dalla Partnership Pipeline...", flush=True)
+    partnership_deals = get_all_deals(PARTNERSHIP_PIPELINE_ID)
+    print(f"  {len(partnership_deals)} deal trovati nella Partnership Pipeline", flush=True)
 
-    print("\n[4/5] Connessione a Google Sheets...", flush=True)
+    print("\n[4/6] Recupero deal dalla Marketing Pipeline...", flush=True)
+    marketing_deals = get_all_deals(MARKETING_PIPELINE_ID)
+    print(f"  {len(marketing_deals)} deal trovati nella Marketing Pipeline", flush=True)
+
+    print("\n[5/6] Connessione a Google Sheets...", flush=True)
     service = get_google_sheets_service()
     print("  Connesso!", flush=True)
 
-    print("\n[5/5] Export per partner...", flush=True)
+    print("\n[6/6] Export per partner...", flush=True)
     total_cells = 0
-    for partner_keyword, sheet_name in PARTNERS.items():
+    for partner_keyword, config in PARTNERS.items():
+        sheet_name = config["sheet"]
+        pipeline_id = config["pipeline"] or PARTNERSHIP_PIPELINE_ID
+        skip_partner_filter = config.get("skip_partner_filter", False)
+
         print(f"\n  [{partner_keyword}]", flush=True)
 
+        # Usa i deal dalla pipeline corretta
+        if pipeline_id == MARKETING_PIPELINE_ID:
+            deals_source = marketing_deals
+        else:
+            deals_source = partnership_deals
+
         # Filtra deal per partner
-        partner_deals = filter_deals_by_partner(deals, partner_keyword)
+        partner_deals = filter_deals_by_partner(deals_source, partner_keyword, pipeline_id, skip_partner_filter)
         print(f"    {len(partner_deals)} deal trovati", flush=True)
 
         if len(partner_deals) == 0:
