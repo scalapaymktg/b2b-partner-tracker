@@ -69,7 +69,7 @@ HUBSPOT_PROPERTIES = [
     "partner_label_name", "ttv_all_time", "instore_category", "offline_annual_revenue",
     "first_order_ttv", "days_between_create_and_kyc",
     # Nuove colonne comuni
-    "risk_check_status", "store_type", "category",
+    "risk_check_status", "store_type", "category", "onboarding_declined_reason",
     # Colonne per Attitude
     "third_party___customer_tier", "third_party___remuneration",
     "original_agent_source_name", "third_party___fixed_fee", "third_party___products__fee",
@@ -99,7 +99,7 @@ BASE_HEADERS = [
     "Deal Cumulative time in \"Proposal sent\" (min)",
     "Giorni in Proposal sent",
     # Nuove colonne comuni
-    "Risk Check Status", "Store Type", "Deal Size", "Category"
+    "Risk Check Status", "Store Type", "Deal Size", "Category", "Onboarding Declined Reason"
 ]
 
 # Header aggiuntivi per partner specifici
@@ -369,7 +369,8 @@ def process_deals(deals, partner_keyword=""):
             props.get("risk_check_status", ""),
             props.get("store_type", ""),
             classify_deal_size(props.get("amount", ""), props.get("store_type", ""), partner_keyword),  # Deal Size
-            props.get("category", "")  # Category
+            props.get("category", ""),  # Category
+            props.get("onboarding_declined_reason", "")  # Onboarding Declined Reason
         ]
 
         # Colonne aggiuntive per Attitude
